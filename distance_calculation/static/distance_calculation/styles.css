@@ -1,0 +1,416 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif; /* Системные шрифты, похожие на Inter */
+    background-color: #f5f5f7;
+}
+
+/* ========== Фиолетовая шапка ========== */
+.top-bar {
+    width: 100%;
+    height: 84px;
+    background-color: #4905A0;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1000;
+}
+
+.home-button {
+    display: inline-block;
+    padding: 10px;
+    border-radius: 12px;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    text-decoration: none;
+    margin: 0 20px;
+}
+
+.home-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.home-button .home-icon {
+    width: 60px;
+    height: 60px;
+    display: block;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.home-button:hover .home-icon {
+    transform: scale(1.05);
+}
+
+/* ========== Заголовок страницы ========== */
+.page-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin: 20px 0;
+    padding: 0;
+}
+
+/* ========== Поиск ========== */
+.search-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+}
+
+.search-input {
+    flex: 1;
+    padding: 10px 15px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.search-input:focus,
+.search-input:hover {
+    border-color: #5e2ec8;
+}
+
+.search-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: 2px solid #5e2ec8;
+    background-color: #5e2ec8;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: opacity 0.2s ease;
+}
+
+.search-btn:hover {
+    opacity: 0.9;
+}
+
+.galaxy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    width: 90%;
+    max-width: 1200px;
+    margin: 60px auto;
+    padding: 0 20px;
+}
+
+.galaxy-card {
+    background-color: #E7E5EF;
+    border-radius: 20px;
+    padding: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+    height: 300px;
+}
+
+.galaxy-card:hover {
+    transform: translateY(-2px);
+}
+
+.galaxy-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+
+.galaxy-name {
+    margin: 8px 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+    flex: 1;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    color: white;
+    text-align: center;
+    background-color: #5e2ec8;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    transition: opacity 0.2s ease;
+    flex: 1;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+/* ========== Калькулятор ========== */
+.calculator-container {
+    position: absolute; /* Относительно родителя */
+    bottom: 40px; /* Отступ от нижнего края */
+    right: 40px; /* Отступ от правого края */
+    z-index: 100; /* Чтобы был сверху */
+}
+
+.calculator-link {
+    display: inline-block;
+    position: relative; 
+}
+
+.calculator {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    transition: transform 0.2s ease;
+}
+
+.calculator:hover {
+    transform: scale(1.05);
+}
+
+.badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #5e2ec8;
+    color: white;
+    font-size: 12px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* ========== Карточка детальной страницы ========== */
+.galaxy-detail-card {
+    background-color: #E7E5EF;
+    border: 2px solid #5e2ec8; 
+    border-radius: 12px;
+    padding: 40px;
+    margin: 40px auto;
+    width: 90%;
+    max-width: 800px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.galaxy-detail-image {
+    width: 300px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 16px;
+    margin: 0 auto 20px;
+    display: block;
+}
+
+.description-box {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.not-found-message {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    margin: 40px auto;
+    max-width: 800px;
+}
+
+.not-found-message h2 {
+    color: #5e2ec8;
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+
+.not-found-message .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #5e2ec8;
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-size: 16px;
+}
+
+.not-found-message .btn:hover {
+    opacity: 0.9;
+}
+
+/* ========== Заголовок заявки ========== */
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px auto 40px;
+    padding: 20px;
+    background-color: #f5f5f7;
+    border-radius: 12px;
+    gap: 60px;
+    max-width: 800px;
+}
+
+.header-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.header-item strong {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.tel-name,
+.date {
+    font-size: 16px;
+    color: #333;
+    background-color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* ========== Сетка галактик в заявке ========== */
+.request-grid {
+    display: flex;
+    flex-direction: column; /* Карточки друг под другом */
+    gap: 20px; /* Отступ между карточками */
+    width: 90%;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.request-card {
+    background-color: #E7E5EF;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.request-card:hover {
+    transform: translateY(-2px);
+}
+
+.galaxy-request-image {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-right: 20px;
+}
+
+.galaxy-request-info {
+    flex: 1;
+}
+
+.galaxy-request-name {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+    margin: 0 0 12px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: white;
+    border-radius: 8px;
+}
+
+.label {
+    font-size: 14px;
+    color: #666;
+}
+
+value {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    background-color: #5e2ec8;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px auto 40px;
+    padding: 0;
+    max-width: 800px;
+}
+
+.header-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.header-item strong {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.tel-name,
+.date {
+    font-size: 16px;
+    color: #333;
+    background-color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    min-width: 120px;
+    text-align: center;
+}

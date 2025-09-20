@@ -1,0 +1,54 @@
+version: '3.9'  # Версия формата Docker Compose. 3.9 — подходит для последних версий Docker.
+
+services:  # Определение сервисов (контейнеров) в проекте.
+
+  web:  # Сервис Django
+    build: .  # Собираем контейнер из Dockerfile в текущей папке
+    command: bash -c "python manage.py runserver 0.0.0.0:8000"
+    # При запуске контейнера сначала применяем миграции базы данных, затем запускаем Django сервер
+    volumes:
+      - .:/app  # Монтируем текущую папку проекта внутрь контейнера, чтобы видеть изменения сразу
+    ports:
+      - "8000:8000"  # Проброс порта 8000 контейнера на 8000 локальной машины
+    env_file:
+      - .env  # Подключаем переменные окружения из файла .env
+    depends_on:
+      - db  # Контейнер web зависит от db — сначала запустится база
+      - minio  # И от minio — сначала запустится MinIO
+
+  db:  # Сервис базы данных PostgreSQL
+    image: postgres:15  # Используем официальный образ PostgreSQL версии 15
+    env_file:
+      - .env  # Переменные окружения с логином, паролем, именем БД
+    ports:
+      - "5432:5432"  # Проброс порта PostgreSQL на локальную машину
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Храним данные БД в Docker volume, чтобы не потерять при перезапуске
+
+  minio:  # Сервис хранилища изображений (S3-совместимый)
+    image: quay.io/minio/minio:RELEASE.2022-10-15T19-57-03Z  # Официальный MinIO образ
+    container_name: minio  # Имя контейнера для удобства
+    command: server --console-address ":9001" /data  # Запускаем MinIO сервер, консоль администратора на порту 9001, данные хранятся в /data
+    ports:
+      - "9000:9000"  # Проброс порта для S3 API
+      - "9001:9001"  # Проброс порта для консоли администратора MinIO
+    env_file:
+      - .env  # Подключаем переменные окружения с ключами доступа
+    volumes:
+      - minio-data:/data  # Храним данные MinIO в Docker volume
+
+  nginx:  # Сервис Nginx для проксирования запросов
+    image: nginx:1.19.2-alpine  # Лёгкий официальный образ Nginx
+    container_name: nginx  # Имя контейнера
+    hostname: nginx  # Имя внутри Docker-сети
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # Подключаем локальный конфиг nginx, ro — только для чтения
+    ports:
+      - "8080:8000"  # Проброс порта: локально 8080, внутри контейнера 8000 (Django)
+    depends_on:
+      - web  # Запускается после Django сервиса
+
+# Определяем тома для хранения данных вне контейнеров
+volumes:
+  postgres_data:  # Для данных PostgreSQL
+  minio-data:     # Для данных MinIO

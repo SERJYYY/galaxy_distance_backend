@@ -1,0 +1,50 @@
+{% extends "distance_calculation/base.html" %}
+{% load static %}
+
+{% block title %}Список галактик{% endblock %}
+
+{% block content %}
+
+<!-- Заголовок страницы -->
+<h1 class="page-title">Список галактик</h1>
+
+<!-- Поиск: поле + кнопка -->
+<div class="search-container">
+    <form method="get" action="">
+        <input 
+            type="search" 
+            name="q" 
+            placeholder="Поиск по названию" 
+            value="{{ search_query }}"  
+            class="search-input"
+        >
+        <button type="submit" class="search-btn">Найти</button>
+    </form>
+</div>
+
+
+<section class="galaxy-grid" aria-label="Галерея галактик">
+    {% for galaxy in galaxies %}
+    <article class="galaxy-card">
+        <img class="galaxy-image" src="{{ galaxy.image_url }}" alt="Галактика {{ galaxy.name }}">
+        <h2 class="galaxy-name">{{ galaxy.name }}</h2>
+        <div class="button-group">
+            <a href="{% url 'galaxy_detail' galaxy.id %}" class="btn">Подробнее</a>
+            <button class="btn">Добавить</button>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+
+
+<div class="calculator-container">
+    <a href="{% url 'galaxy_request' 1 %}" class="calculator-link">
+        <img class="calculator" src="http://127.0.0.1:9000/test/calculator.png" alt="Калькулятор">
+        <!-- Бейдж -->
+        {% if count %}
+            <span class="badge">{{ count }}</span>
+        {% endif %}
+    </a>
+</div>
+
+{% endblock %}

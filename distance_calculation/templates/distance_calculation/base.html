@@ -1,0 +1,22 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Galaxy Distance{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'distance_calculation/styles.css' %}">
+</head>
+<body>
+    <!-- Фиолетовая шапка — без отступов -->
+    <header class="top-bar">
+        <a href="{% url 'galaxies_list' %}" class="home-button" aria-label="Главная">
+            <img class="home-icon" src="http://127.0.0.1:9000/test/home%20pix.png" alt="Главная">
+        </a>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

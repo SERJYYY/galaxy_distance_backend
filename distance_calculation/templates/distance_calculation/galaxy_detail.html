@@ -1,0 +1,24 @@
+{% extends "distance_calculation/base.html" %}
+{% load static %}
+
+{% block title %}{% if not_found %}Не найдено{% else %}{{ galaxy.name }} — Подробнее{% endif %}{% endblock %}
+
+{% block content %}
+
+{% if not_found %}
+    <div class="not-found-message">
+        <h2>Галактика не найдена 😔</h2>
+        <a href="{% url 'galaxies_list' %}" class="btn">Вернуться к списку галактик</a>
+    </div>
+{% else %}
+    <h1 class="page-title">{{ galaxy.name }}</h1>
+
+    <div class="galaxy-detail-card">
+        <img class="galaxy-detail-image" src="{{ galaxy.image_url }}" alt="{{ galaxy.name }}">
+        <div class="description-box">
+            {{ galaxy.description }}
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
