@@ -5,10 +5,8 @@
 
 {% block content %}
 
-<!-- Заголовок страницы -->
 <h1 class="page-title">Заявка {{ request_id }}</h1>
 
-<!-- Информация о телескопе и дате -->
 <div class="request-header">
     <div class="header-item">
         <strong>Телескоп</strong>
@@ -20,7 +18,6 @@
     </div>
 </div>
 
-<!-- Список галактик в заявке -->
 <section class="request-grid" aria-label="Галактики в заявке">
     {% for galaxy in galaxies %}
     <article class="request-card">

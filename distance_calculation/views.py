@@ -96,12 +96,12 @@ def galaxy_request(request, request_id):
         return render(request, "distance_calculation/404.html", {"message": "Заявка не найдена"})
     else:
         selected_galaxies = [g for g in galaxies if g["id"] in req["galaxy_ids"]]
-        count = len(selected_galaxies)  # Считаем количество галактик
+        count = len(selected_galaxies)  
 
         return render(request, "distance_calculation/galaxy_request.html", {
             "request_id": request_id,
             "galaxies": selected_galaxies,
             "telescope_name": req["telescope"],
             "date": req["date"],
-            "count": count  # Передаём количество
+            "count": count  
         })
