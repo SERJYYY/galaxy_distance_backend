@@ -5,8 +5,7 @@
 
 {% block content %}
 
-<h1 class="page-title">Заявка {{ request_id }}</h1>
-
+<!-- Информация о телескопе и дате -->
 <div class="request-header">
     <div class="header-item">
         <strong>Телескоп</strong>
@@ -18,22 +17,24 @@
     </div>
 </div>
 
+
+<!-- Заголовки столбцов -->
+<div class="request-headers">
+    <div class="header-col magnitude">Видимая звездная величина</div>
+    <div class="header-col distance">Расстояние</div>
+</div>
+
+<!-- Карточки услуг -->
 <section class="request-grid" aria-label="Галактики в заявке">
     {% for galaxy in galaxies %}
-    <article class="request-card">
-        <img class="galaxy-request-image" src="{{ galaxy.image_url }}" alt="{{ galaxy.name }}">
-        <div class="galaxy-request-info">
-            <h3 class="galaxy-request-name">{{ galaxy.name }}</h3>
-            <div class="info-row">
-                <span class="label">Видимая звёздная величина</span>
-                <span class="value">{{ galaxy.magnitude }}</span>
+        <article class="request-card">
+            <img class="galaxy-request-image" src="{{ galaxy.image_url }}" alt="{{ galaxy.name }}">
+            <div class="galaxy-request-info">
+                <h3 class="galaxy-request-name">{{ galaxy.name }}</h3>
+                <div class="col magnitude">{{ galaxy.magnitude }}</div>
+                <div class="col distance">{{ galaxy.distance }} Мпк</div>
             </div>
-            <div class="info-row">
-                <span class="label">Расстояние</span>
-                <span class="value">{{ galaxy.distance }} Мпк</span>
-            </div>
-        </div>
-    </article>
+        </article>
     {% endfor %}
 </section>
 

@@ -309,15 +309,47 @@ body {
     text-align: center;
 }
 
-/* Сетка галактик в заявке */
+/* ========== Заголовки столбцов ========== */
+.request-headers {
+    display: flex;
+    justify-content: flex-end; /* заголовки выравниваем к правой стороне */
+    align-items: center;
+    padding: 10px 400px;
+    background-color: #f5f5f7;
+    border-radius: 8px;
+    margin: 0 20px 10px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+    /* gap: 10px; */
+}
+
+.header-col {
+    flex: 0 0 150px;
+}
+
+.header-col.magnitude {
+    text-align: center;  /* по центру */
+}
+
+.header-col.distance {
+    text-align: right;
+    padding-left: 60px;
+    padding-right: 100px;
+}
+
+/* ========== Карточки услуг ========== */
 .request-grid {
     display: flex;
-    flex-direction: column; /* Карточки друг под другом */
-    gap: 20px; /* Отступ между карточками */
+    flex-direction: column;
+    gap: 20px;
     width: 90%;
     max-width: 800px;
-    margin: 40px auto;
-    padding: 0 20px;
+    margin: 0 auto 40px;
+    padding: 0;
 }
 
 .request-card {
@@ -330,10 +362,6 @@ body {
     transition: transform 0.2s ease;
 }
 
-.request-card:hover {
-    transform: translateY(-2px);
-}
-
 .galaxy-request-image {
     width: 120px;
     height: 120px;
@@ -344,73 +372,45 @@ body {
 
 .galaxy-request-info {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
 .galaxy-request-name {
     font-size: 18px;
     font-weight: 500;
     color: #333;
-    margin: 0 0 12px;
+    margin: 0;
+    flex: 0 0 150px;
+    text-align: left;
 }
 
-.info-row {
+.col.magnitude {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    padding: 8px;
+    justify-content: center;
+    align-items: center;
+    width: 150px;
     background-color: white;
+    padding: 8px 12px;
     border-radius: 8px;
-}
-
-.label {
-    font-size: 14px;
-    color: #666;
-}
-
-value {
-    font-size: 14px;
-    color: #333;
+    font-size: 16px;
     font-weight: 500;
-    background-color: #5e2ec8;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
-    min-width: 80px;
     text-align: center;
 }
 
-.request-header {
+.col.distance {
     display: flex;
-    justify-content: space-between;
+    margin-left: auto;
+    margin-right: 30px;
+    justify-content: center;
     align-items: center;
-    margin: 20px auto 40px;
-    padding: 0;
-    max-width: 800px;
-}
-
-.header-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.header-item strong {
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 8px;
-    font-weight: 500;
-}
-
-.tel-name,
-.date {
+    width: 150px;
+    background-color: #5e2ec8;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
     font-size: 16px;
-    color: #333;
-    background-color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
     font-weight: 500;
-    min-width: 120px;
     text-align: center;
 }

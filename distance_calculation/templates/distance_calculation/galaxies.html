@@ -11,7 +11,7 @@
     <form method="get" action="">
         <input 
             type="search" 
-            name="q" 
+            name="search" 
             placeholder="Поиск по названию" 
             value="{{ search_query }}"  
             class="search-input"
@@ -36,7 +36,7 @@
 
 
 <div class="calculator-container">
-    <a href="{% url 'galaxy_request' 1 %}" class="calculator-link">
+    <a href="{% url 'galaxy_request' 3 %}" class="calculator-link">
         <img class="calculator" src="http://127.0.0.1:9000/test/calculator.png" alt="Калькулятор">
         {% if count %}
             <span class="badge">{{ count }}</span>
