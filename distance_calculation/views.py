@@ -47,25 +47,25 @@ galaxy_requests = [
     {
         "id": 1,
         "galaxy_ids": [1, 3],
-        "telescope": "Хаббл",
+        "telescope": "Habble",
         "date": "15.09.2025"
     },
     {
         "id": 2,
         "galaxy_ids": [2, 4, 5],
-        "telescope": "Джеймс Уэбб",
+        "telescope": "James Webb",
         "date": "20.09.2025"
     },
     {
         "id": 3,
         "galaxy_ids": [1, 2, 3, 4, 5],
-        "telescope": "Очень Большой Телескоп",
+        "telescope": "Large Binocular Telescope",
         "date": "01.10.2025"
     }
 ]
 
 def galaxies_list(request):
-    query = request.GET.get('q', '').strip()
+    query = request.GET.get('search', '').strip()
     filtered_galaxies = galaxies
 
     if query:
@@ -74,7 +74,7 @@ def galaxies_list(request):
             if query.lower() in galaxy["name"].lower()
         ]
 
-    first_request = next((r for r in galaxy_requests if r["id"] == 3), None)
+    first_request = next((r for r in galaxy_requests if r["id"] == 1), None)
     count = len([g for g in galaxies if g["id"] in first_request["galaxy_ids"]]) if first_request else 0
 
     return render(request, "distance_calculation/galaxies.html", {
