@@ -7,6 +7,7 @@
 
 <h1 class="page-title">Список галактик</h1>
 
+<!-- Поиск галактик -->
 <div class="search-container">
     <form method="get" action="">
         <input 
@@ -20,28 +21,41 @@
     </form>
 </div>
 
-
+<!-- Сетка галактик -->
 <section class="galaxy-grid" aria-label="Галерея галактик">
     {% for galaxy in galaxies %}
     <article class="galaxy-card">
         <img class="galaxy-image" src="{{ galaxy.image_url }}" alt="Галактика {{ galaxy.name }}">
         <h2 class="galaxy-name">{{ galaxy.name }}</h2>
         <div class="button-group">
-            <a href="{% url 'galaxy_detail' galaxy.id %}" class="btn">Подробнее</a>
-            <button class="btn">Добавить</button>
+            <div class="btn-wrapper">
+                <a href="{% url 'galaxy_detail' galaxy.id %}" class="btn">Подробнее</a>
+            </div>
+            <div class="btn-wrapper">
+                <form method="post" action="{% url 'add_galaxy' galaxy.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">Добавить</button>
+                </form>
+            </div>
         </div>
     </article>
     {% endfor %}
 </section>
 
-
+<!-- Ссылка на текущую заявку -->
 <div class="calculator-container">
-    <a href="{% url 'galaxy_request' 3 %}" class="calculator-link">
-        <img class="calculator" src="http://127.0.0.1:9000/test/calculator.png" alt="Калькулятор">
-        {% if count %}
-            <span class="badge">{{ count }}</span>
-        {% endif %}
-    </a>
+    {% if current_request %}
+        <a href="{% url 'galaxy_request' current_request.id %}" class="calculator-link">
+            <img class="calculator" src="http://127.0.0.1:9000/test/calculator.png" alt="Калькулятор">
+            {% if count %}
+                <span class="badge">{{ count }}</span>
+            {% endif %}
+        </a>
+    {% else %}
+        <div class="calculator-link disabled">
+            <img class="calculator" src="http://127.0.0.1:9000/test/calculator.png" alt="Калькулятор">
+        </div>
+    {% endif %}
 </div>
 
 {% endblock %}

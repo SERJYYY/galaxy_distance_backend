@@ -146,7 +146,14 @@ body {
     justify-content: center;
 }
 
+.btn-wrapper {
+    flex: 1; /* равномерное распределение между обёртками */
+    display: block;
+}
+
 .btn {
+    display: block;
+    box-sizing: border-box;
     padding: 8px 16px;
     border-radius: 20px;
     border: none;
@@ -158,7 +165,8 @@ body {
     background-color: #5e2ec8;
     font-family: "Segoe UI", Helvetica, Arial, sans-serif;
     transition: opacity 0.2s ease;
-    flex: 1;
+    width: 100%; /* растягиваем на всю ширину родителя */
+    min-width: 100px; /* чтобы не было слишком узких кнопок */
 }
 
 .btn:hover {
@@ -341,6 +349,21 @@ body {
     padding-right: 100px;
 }
 
+
+/* Небольшая адаптивность: на узких экранах уменьшаем сдвиг и ширины колонок */
+@media (max-width: 600px) {
+    .request-headers {
+        padding-left: 16px;   /* убираем большой сдвиг на мобильных */
+        padding-right: 16px;
+    }
+    .header-col.name { flex: 0 0 120px; }
+    .header-col.magnitude { flex: 0 0 120px; }
+    .header-col.distance { flex: 0 0 120px; }
+    .galaxy-request-name { flex: 0 0 120px; }
+    .col.magnitude, .col.distance { width: 120px; }
+}
+
+
 /* ========== Карточки услуг ========== */
 .request-grid {
     display: flex;
@@ -413,4 +436,30 @@ body {
     font-size: 16px;
     font-weight: 500;
     text-align: center;
+}
+
+/* ========== Кнопка удаление заявки ========== */
+.delete-request-btn {
+    background-color: #5e2ec8; /* красная */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.2s ease;
+}
+
+.delete-request-btn:hover {
+    opacity: 0.8;
+    background-color: #cf049c;
+}
+
+/* Контейнер кнопки удаления заявки, чтобы она была справа от карточек */
+.request-actions {
+    display: flex;
+    justify-content: flex-end;
+    width: 90%;
+    max-width: 800px;
+    margin: 10px auto;
 }

@@ -1,7 +1,7 @@
 {% extends "distance_calculation/base.html" %}
 {% load static %}
 
-{% block title %}Заявка #{{ request_id }}{% endblock %}
+{% block title %}Заявка #{{ galaxy_request.id }}{% endblock %}
 
 {% block content %}
 
@@ -9,33 +9,41 @@
 <div class="request-header">
     <div class="header-item">
         <strong>Телескоп</strong>
-        <span class="tel-name">{{ telescope_name }}</span>
+        <span class="tel-name">{{ galaxy_request.telescope }}</span>
     </div>
     <div class="header-item">
-        <strong>Дата</strong>
-        <span class="date">{{ date }}</span>
+        <strong>Дата создания</strong>
+        <span class="date">{{ galaxy_request.created_at|date:"d.m.Y H:i" }}</span>
     </div>
 </div>
 
-
 <!-- Заголовки столбцов -->
 <div class="request-headers">
+    <div class="header-col name"></div> <!-- пустая колонка для названия галактики -->
     <div class="header-col magnitude">Видимая звездная величина</div>
     <div class="header-col distance">Расстояние</div>
 </div>
 
-<!-- Карточки услуг -->
+<!-- Карточки галактик -->
 <section class="request-grid" aria-label="Галактики в заявке">
-    {% for galaxy in galaxies %}
-        <article class="request-card">
-            <img class="galaxy-request-image" src="{{ galaxy.image_url }}" alt="{{ galaxy.name }}">
-            <div class="galaxy-request-info">
-                <h3 class="galaxy-request-name">{{ galaxy.name }}</h3>
-                <div class="col magnitude">{{ galaxy.magnitude }}</div>
-                <div class="col distance">{{ galaxy.distance }} Мпк</div>
-            </div>
-        </article>
+    {% for item in galaxy_request.galaxies.all %}
+    <article class="request-card">
+        <img class="galaxy-request-image" src="{{ item.galaxy.image_url }}" alt="{{ item.galaxy.name }}">
+        <div class="galaxy-request-info">
+            <h3 class="galaxy-request-name">{{ item.galaxy.name }}</h3>
+            <div class="col magnitude">{{ item.magnitude|default:"-" }}</div>
+            <div class="col distance">{{ item.distance|default:"-" }} Мпк</div>
+        </div>
+    </article>
     {% endfor %}
 </section>
+
+<!-- Кнопка удалить заявку -->
+<div class="request-actions">
+    <form method="post" action="{% url 'delete_galaxy_request' galaxy_request.id %}">
+        {% csrf_token %}
+        <button type="submit" class="delete-request-btn">Удалить заявку</button>
+    </form>
+</div>
 
 {% endblock %}
