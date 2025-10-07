@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 from .models import Galaxy, GalaxyRequest, GalaxiesInRequest
 from django.contrib.auth.models import User
+from django.shortcuts import redirect
+from django.db import connection
 
 
 
@@ -75,12 +77,17 @@ from django.contrib.auth.models import User
 # [GET] Список галактик (услуг)
 # ==============================
 def galaxies_list(request):
-    galaxies = Galaxy.objects.filter(is_active=True)
+    search_query = request.GET.get("search", "")  # получаем поисковый запрос
+    
+    galaxies = Galaxy.objects.filter(is_active=True)  # активные галактики
+    
+    if search_query:  # если есть запрос
+        galaxies = galaxies.filter(name__icontains=search_query)
 
     # берём суперпользователя admin
     user = User.objects.get(username="admin")
 
-    # ищем активную заявку со статусом "черновик"
+    # ищем активную заявку со статусом "draft"
     current_request = GalaxyRequest.objects.filter(creator=user, status="draft").first()
     count = current_request.galaxies.count() if current_request else 0
 
@@ -88,8 +95,8 @@ def galaxies_list(request):
         "galaxies": galaxies,
         "count": count,
         "current_request": current_request,
+        "search_query": search_query,  # чтобы в input подставлялось значение
     })
-
 
 # ==============================
 # [GET] Подробности галактики
@@ -139,12 +146,28 @@ def galaxy_request(request, request_id):
     })
 
 
-# ==============================
-# [POST] Удаление заявки (смена статуса на "deleted")
-# ==============================
+# # ==============================
+# # [POST] Удаление заявки (смена статуса на "deleted")
+# # ==============================
+# def delete_galaxy_request(request, request_id):
+#     galaxy_request = GalaxyRequest.objects.filter(id=request_id).first()
+#     if galaxy_request:
+#         galaxy_request.status = "deleted"
+#         galaxy_request.save()
+#     return redirect("galaxies_list")
+
+
 def delete_galaxy_request(request, request_id):
-    galaxy_request = GalaxyRequest.objects.filter(id=request_id).first()
-    if galaxy_request:
-        galaxy_request.status = "deleted"
-        galaxy_request.save()
+    """
+    Удаляет заявку (меняет статус на 'deleted') через прямой SQL-запрос.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE galaxy_requests
+            SET status = %s
+            WHERE id = %s AND creator_id = %s
+            """,
+            ["deleted", request_id, request.user.id]
+        )
     return redirect("galaxies_list")
