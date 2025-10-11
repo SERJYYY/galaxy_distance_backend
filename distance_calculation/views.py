@@ -136,9 +136,16 @@ def add_galaxy(request, galaxy_id):
 # [GET] Просмотр заявки
 # ==============================
 def galaxy_request(request, request_id):
-    # показываем только черновые заявки
-    galaxy_request = GalaxyRequest.objects.filter(id=request_id, status="draft").first()
-    galaxies_in_request = galaxy_request.galaxies.all() if galaxy_request else []
+    user = User.objects.get(username="admin")
+
+    # получаем заявку пользователя
+    galaxy_request = GalaxyRequest.objects.filter(id=request_id, creator=user).first()
+
+    # если заявка не найдена или удалена — редирект на страницу услуг
+    if not galaxy_request or galaxy_request.status == "deleted":
+        return redirect("galaxies_list")
+
+    galaxies_in_request = galaxy_request.galaxies.all()
 
     return render(request, "distance_calculation/galaxy_request.html", {
         "galaxy_request": galaxy_request,
@@ -146,21 +153,12 @@ def galaxy_request(request, request_id):
     })
 
 
-# # ==============================
-# # [POST] Удаление заявки (смена статуса на "deleted")
-# # ==============================
-# def delete_galaxy_request(request, request_id):
-#     galaxy_request = GalaxyRequest.objects.filter(id=request_id).first()
-#     if galaxy_request:
-#         galaxy_request.status = "deleted"
-#         galaxy_request.save()
-#     return redirect("galaxies_list")
-
-
+# ==============================
+# [POST] Удаление заявки
+# ==============================
 def delete_galaxy_request(request, request_id):
-    """
-    Удаляет заявку (меняет статус на 'deleted') через прямой SQL-запрос.
-    """
+    user = User.objects.get(username="admin")
+
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -168,6 +166,7 @@ def delete_galaxy_request(request, request_id):
             SET status = %s
             WHERE id = %s AND creator_id = %s
             """,
-            ["deleted", request_id, request.user.id]
+            ["deleted", request_id, user.id]
         )
+
     return redirect("galaxies_list")
