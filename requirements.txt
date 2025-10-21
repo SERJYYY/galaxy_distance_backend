@@ -1,4 +1,7 @@
 Django>=4.2
-psycopg2-binary>=2.9   # драйвер PostgreSQL
-boto3>=1.26             # для работы с MinIO через S3 API
-django-storages>=1.13   # интеграция Django с MinIO
+psycopg2-binary>=2.9
+boto3>=1.26
+django-storages>=1.13
+djangorestframework==3.16.1
+minio==7.2.7
+django-filter>=23.5

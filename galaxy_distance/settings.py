@@ -39,6 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'distance_calculation',
+    'api.apps.ApiConfig',
+    'rest_framework',
+    'django_filters',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -78,7 +82,7 @@ WSGI_APPLICATION = 'galaxy_distance.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),  # берёт galaxy_db из .env
+        'NAME': os.environ.get('POSTGRES_DB'),
         'USER': os.environ.get('POSTGRES_USER'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
         'HOST': os.environ.get('POSTGRES_HOST'),
@@ -86,7 +90,8 @@ DATABASES = {
     }
 }
 
-# Настройка MinIO для хранения медиафайлов
+
+# MinIO — настройки для django-storages (DEFAULT_FILE_STORAGE)
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_SECRET_KEY')
@@ -94,6 +99,24 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_BUCKET')
 AWS_S3_ENDPOINT_URL = f"http://{os.environ.get('MINIO_ENDPOINT')}"
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_QUERYSTRING_AUTH = False
+
+# MinIO — настройки для прямой работы через minio_utils.py (ваш API)
+MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT')      # "minio:9000"
+MINIO_ACCESS_KEY = os.environ.get('MINIO_ACCESS_KEY')  # "minio"
+MINIO_SECRET_KEY = os.environ.get('MINIO_SECRET_KEY')  # "minio123"
+MINIO_BUCKET = os.environ.get('MINIO_BUCKET', 'images')
+
+
+# DRF Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -118,11 +141,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
 

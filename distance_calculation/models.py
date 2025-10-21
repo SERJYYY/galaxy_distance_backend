@@ -6,7 +6,7 @@ class Galaxy(models.Model):
     """Таблица галактик (услуг)."""
     name = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание")
-    image_url = models.URLField(null=True, blank=True, verbose_name="URL изображения")
+    image_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="Имя файла в MinIO")
     is_active = models.BooleanField(default=True, verbose_name="Активна ли услуга")
 
     class Meta:
@@ -53,7 +53,7 @@ class GalaxyRequest(models.Model):
         verbose_name="Модератор"
     )
 
-    telescope = models.CharField(max_length=255, verbose_name="Телескоп")
+    telescope = models.CharField(max_length=255, verbose_name="Телескоп", null=True, blank=True)
 
     class Meta:
         db_table = "galaxy_requests"
