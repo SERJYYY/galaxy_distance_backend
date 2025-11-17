@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.conf import settings
 
 
 class Galaxy(models.Model):
@@ -39,14 +41,14 @@ class GalaxyRequest(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата завершения")
 
     creator = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="created_requests",
         verbose_name="Создатель"
     )
     moderator = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
         related_name="moderated_requests",
         null=True,
         blank=True,
@@ -79,3 +81,72 @@ class GalaxiesInRequest(models.Model):
 
     def __str__(self):
         return f"{self.galaxy.name} в заявке #{self.galaxy_request.id}"
+
+
+
+# Менеджер для кастомного пользователя
+class CustomUserManager(BaseUserManager):
+    def create_user(self, username, password=None, **extra_fields):
+        """
+        Создание обычного пользователя с username
+        """
+        if not username:
+            raise ValueError('The Username must be set')
+        
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, password=None, **extra_fields):
+        """
+        Создание суперпользователя
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(username, password, **extra_fields)
+
+
+# Кастомная модель пользователя
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+    username = models.CharField(max_length=150, unique=True, verbose_name="Имя пользователя")
+    first_name = models.CharField(max_length=30, blank=True, verbose_name="Имя")
+    last_name = models.CharField(max_length=30, blank=True, verbose_name="Фамилия")
+    email = models.EmailField(blank=True, null=True, verbose_name="Email")
+    is_staff = models.BooleanField(default=False, verbose_name="Менеджер (staff)")
+    is_superuser = models.BooleanField(default=False, verbose_name="Администратор (superuser)")
+    is_active = models.BooleanField(default=True, verbose_name="Активный пользователь")
+    is_active = models.BooleanField(default=True, verbose_name="Активный пользователь")
+    date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата регистрации")
+
+    # важно — уникальные related_name
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='distance_calculation_users',  
+        blank=True,
+        help_text='Группы, к которым принадлежит пользователь.',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='distance_calculation_users_permissions',
+        blank=True,
+        help_text='Права пользователя.',
+    )
+
+    USERNAME_FIELD = 'username'  # основной идентификатор
+    REQUIRED_FIELDS = []  # для создания суперпользователя через createsuperuser
+
+    objects = CustomUserManager()
+
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+
+    def __str__(self):
+        return self.username

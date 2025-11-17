@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Galaxy, GalaxyRequest, GalaxiesInRequest
+from .models import Galaxy, GalaxyRequest, GalaxiesInRequest, CustomUser
 
 User = get_user_model()
 
@@ -34,11 +34,22 @@ class GalaxyRequestItemSerializer(serializers.ModelSerializer):
 class GalaxyRequestSerializer(serializers.ModelSerializer):
     creator = serializers.StringRelatedField(read_only=True)
     moderator = serializers.StringRelatedField(read_only=True)
+    created_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    submitted_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    completed_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
 
     class Meta:
         model = GalaxyRequest
-        fields = [ 'id', 'status', 'creator', 'moderator', 'telescope', 'created_at', 'submitted_at', 'completed_at']
-
+        fields = [
+            "id",
+            "status",
+            "creator",
+            "moderator",
+            "telescope",
+            "created_at",
+            "submitted_at",
+            "completed_at",
+        ]
 
 class GalaxyRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -74,28 +85,24 @@ class GalaxyRequestDetailSerializer(serializers.ModelSerializer):
 # USER SERIALIZERS
 # -----------------------
 class UserRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ["id", "username", "email", "password"]
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data.get('email'),
-            password=validated_data['password']
+            username=validated_data["username"],
+            email=validated_data.get("email"),
+            password=validated_data["password"]
         )
         return user
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
-
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "last_name", "email"]
+        fields = ["id", "username", "email", "first_name", "last_name"]
         read_only_fields = ["id", "username"]
+

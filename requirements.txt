@@ -5,3 +5,5 @@ django-storages>=1.13
 djangorestframework==3.16.1
 minio==7.2.7
 django-filter>=23.5
+django-redis>=5.4
+drf-yasg[validation, swagger, redoc]

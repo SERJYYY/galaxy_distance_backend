@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'rest_framework.authtoken',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -90,6 +91,8 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = 'distance_calculation.CustomUser'
+
 
 # MinIO — настройки для django-storages (DEFAULT_FILE_STORAGE)
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -107,6 +110,29 @@ MINIO_SECRET_KEY = os.environ.get('MINIO_SECRET_KEY')  # "minio123"
 MINIO_BUCKET = os.environ.get('MINIO_BUCKET', 'images')
 
 
+# Redis настройки
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # "PASSWORD": os.getenv("REDIS_PASSWORD"),  # если требуется
+        }
+    }
+}
+
+# Использовать кэш для хранения сессий
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+
 # DRF Configuration
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
@@ -114,6 +140,11 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
 }
 
