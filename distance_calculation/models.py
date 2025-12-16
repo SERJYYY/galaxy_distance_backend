@@ -122,7 +122,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False, verbose_name="Менеджер (staff)")
     is_superuser = models.BooleanField(default=False, verbose_name="Администратор (superuser)")
     is_active = models.BooleanField(default=True, verbose_name="Активный пользователь")
-    is_active = models.BooleanField(default=True, verbose_name="Активный пользователь")
     date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата регистрации")
 
     # важно — уникальные related_name

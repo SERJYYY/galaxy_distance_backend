@@ -12,7 +12,7 @@ urlpatterns = [
     path('galaxies/<int:pk>/update/', views.GalaxyUpdateView.as_view(), name='galaxies-update'),  # PUT обновление галактики по ID
     path('galaxies/<int:pk>/upload-image/', views.GalaxyImageUploadView.as_view(), name='galaxies-upload-image'),  # POST загрузка изображения галактики
     path('galaxies/<int:pk>/delete/', views.GalaxyDeleteView.as_view(), name='galaxies-delete'),  # DELETE мягкое удаление галактики
-    path('galaxies/add-to-request/', views.AddGalaxyToDraftView.as_view(), name='galaxiesinrequest-add'), #POST добавление услуги в черновую заявку
+    path('galaxies/<int:pk>/add-to-request/', views.AddGalaxyToDraftView.as_view(), name='galaxiesinrequest-add'), #POST добавление услуги в черновую заявку
 
     # ---------------- GALAXY REQUEST ----------------
     path('galaxy_requests/', views.GalaxyRequestListView.as_view(), name='galaxyrequests-list'),  # GET список всех заявок текущего пользователя
@@ -24,7 +24,7 @@ urlpatterns = [
     path('galaxy_requests/cart-icon/', views.CartIconView.as_view(), name='cart-icon'),  # GET количество услуг в черновой заявке
 
     # ---------------- GALAXIES IN REQUEST ----------------
-    path('galaxy_requests/remove-from-request/', views.RemoveGalaxyFromDraftView.as_view(), name='galaxiesinrequest-delete'),  # DELETE удаление услуги из текущей черновой заявки
+    path('galaxy_requests/<int:pk>/remove-from-request/', views.RemoveGalaxyFromDraftView.as_view(), name='galaxiesinrequest-delete'),  # DELETE удаление услуги из текущей черновой заявки
     path('galaxy_requests/update-magnitude/', views.UpdateMagnitudeView.as_view(), name='galaxiesinrequest-update-magnitude'),  # PUT изменение magnitude услуги в черновой заявке
 
     # ---------------- USER ----------------

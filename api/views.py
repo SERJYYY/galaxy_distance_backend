@@ -1,7 +1,7 @@
 # galaxy_distance/api/views.py
 import uuid
 import json
-from datetime import timedelta
+from datetime import datetime
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -32,6 +32,12 @@ from .serializers import (
     UserRegisterSerializer, UserProfileSerializer
 )
 from .minio_utils import handle_galaxy_image_upload, delete_image_from_minio
+
+def format_dt(dt):
+    """Форматирует дату в формат дд.мм.гггг чч:мм. Если None — возвращает None."""
+    if not dt:
+        return None
+    return dt.strftime("%d.%m.%Y %H:%M")
 
 # Redis client for sessions
 SESSION_TTL_SECONDS = getattr(settings, "SESSION_TTL_SECONDS", 7 * 24 * 3600)  # 7 days default
@@ -399,53 +405,56 @@ class GalaxyDeleteView(APIView):
 class AddGalaxyToDraftView(APIView):
     """
     POST — Добавление услуги (галактики) в текущую черновую заявку пользователя.
-    Если черновой заявки нет, создается новая.
-    Доступен для обычного пользователя и модератора.
+    Теперь galaxy_id берётся из URL: galaxies/<int:pk>/add-to-request/
     """
-    permission_classes = [IsUser | IsModerator]  # OR: пользователь или модератор
+    permission_classes = [IsUser | IsModerator]
 
     @swagger_auto_schema(
         operation_id="add_galaxy_to_request",
-        operation_description="Добавить услугу (галактику) в черновую заявку текущего пользователя. Если черновая заявка отсутствует, создается новая.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['galaxy_id'],
-            properties={
-                'galaxy_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID услуги (галактики)")
-            }
-        ),
+        operation_description="Добавить услугу (галактику) в черновую заявку текущего пользователя по ID из URL.",
         responses={
             200: openapi.Response(
                 description="Услуга успешно добавлена",
                 examples={"application/json": {"status": "услуга добавлена", "galaxy_id": 1, "request_id": 5}}
             ),
-            400: "Не указан galaxy_id",
             404: "Галактика с таким ID не найдена"
         },
         tags=["Galaxies"]
     )
-    def post(self, request):
+    def post(self, request, pk):
         user = get_user(request)
-        galaxy_id = request.data.get("galaxy_id")
 
-        if not galaxy_id:
-            return Response({"error": "Необходимо указать galaxy_id"}, status=400)
+        # pk — ID галактики из URL
+        galaxy = get_object_or_404(Galaxy, id=pk, is_active=True)
 
-        galaxy = get_object_or_404(Galaxy, id=galaxy_id, is_active=True)
-
-        # Получаем черновую заявку или создаем новую
+        # Получаем или создаём черновую заявку
         draft_request, created = GalaxyRequest.objects.get_or_create(
             creator=user,
             status=GalaxyRequest.Status.DRAFT
         )
 
-        # Проверяем, что галактика еще не добавлена
-        if GalaxiesInRequest.objects.filter(galaxy_request=draft_request, galaxy=galaxy).exists():
-            return Response({"status": "услуга уже в черновой заявке", "galaxy_id": galaxy_id, "request_id": draft_request.id})
+        # Проверяем наличие услуги в черновой заявке
+        if GalaxiesInRequest.objects.filter(
+                galaxy_request=draft_request,
+                galaxy=galaxy
+        ).exists():
+            return Response({
+                "status": "услуга уже в черновой заявке",
+                "galaxy_id": pk,
+                "request_id": draft_request.id
+            })
 
-        # Добавляем галактику
-        GalaxiesInRequest.objects.create(galaxy_request=draft_request, galaxy=galaxy)
-        return Response({"status": "услуга добавлена", "galaxy_id": galaxy_id, "request_id": draft_request.id})
+        # Добавляем услугу
+        GalaxiesInRequest.objects.create(
+            galaxy_request=draft_request,
+            galaxy=galaxy
+        )
+
+        return Response({
+            "status": "услуга добавлена",
+            "galaxy_id": pk,
+            "request_id": draft_request.id
+        })
 
 
 # ------------------- Galaxies In Request Views -------------------
@@ -454,42 +463,55 @@ class RemoveGalaxyFromDraftView(APIView):
 
     @swagger_auto_schema(
         operation_id="remove_galaxy_from_draft",
-        operation_description="Удалить услугу (галактику) из текущей черновой заявки пользователя",
-        manual_parameters=[
-            openapi.Parameter(
-                'galaxy_id', openapi.IN_QUERY, description="ID услуги (галактики) для удаления (или можно передать в теле запроса)", type=openapi.TYPE_INTEGER
-            )
-        ],
+        operation_description="Удалить услугу (галактику) по её ID из текущей черновой заявки пользователя.",
         responses={
-            200: openapi.Response("Услуга успешно удалена", examples={"application/json": {"status": "услуга удалена", "galaxy_id": 1, "request_id": 5}}),
-            400: "Не указан galaxy_id",
+            200: openapi.Response(
+                "Услуга успешно удалена",
+                examples={"application/json": {"status": "услуга удалена", "galaxy_id": 7, "request_id": 12}}
+            ),
+            400: "Некорректный galaxy_id",
             404: "Нет активной черновой заявки или услуга не найдена"
         },
         tags=["GalaxyInRequest"]
     )
-    def delete(self, request, galaxy_id=None):
-        # allow galaxy_id via path param OR query/body
-        galaxy_id = galaxy_id or request.query_params.get('galaxy_id') or request.data.get('galaxy_id')
-        if not galaxy_id:
-            return Response({'error': 'Не указан galaxy_id'}, status=400)
+    def delete(self, request, pk):
+        """
+        pk — ID галактики, которую нужно удалить из черновой заявки.
+        """
+        user = get_user(request)
 
+        # Проверяем, что galaxy_id передан корректно
         try:
-            galaxy_id = int(galaxy_id)
+            galaxy_id = int(pk)
         except (TypeError, ValueError):
             return Response({'error': 'galaxy_id должен быть целым числом'}, status=400)
 
-        user = get_user(request)
-        draft_request = GalaxyRequest.objects.filter(creator=user, status=GalaxyRequest.Status.DRAFT).first()
+        # Ищем черновую заявку
+        draft_request = GalaxyRequest.objects.filter(
+            creator=user,
+            status=GalaxyRequest.Status.DRAFT
+        ).first()
+
         if not draft_request:
             return Response({'error': 'Нет активной черновой заявки'}, status=404)
 
+        # Ищем услугу в заявке
         try:
-            item = GalaxiesInRequest.objects.get(galaxy_request=draft_request, galaxy_id=galaxy_id)
+            item = GalaxiesInRequest.objects.get(
+                galaxy_request=draft_request,
+                galaxy_id=galaxy_id
+            )
         except GalaxiesInRequest.DoesNotExist:
             return Response({'error': 'Услуга не найдена в заявке'}, status=404)
 
+        # Удаляем услугу
         item.delete()
-        return Response({'status': 'услуга удалена', 'galaxy_id': galaxy_id, 'request_id': draft_request.id})
+
+        return Response({
+            'status': 'услуга удалена',
+            'galaxy_id': galaxy_id,
+            'request_id': draft_request.id
+        })
 
 
 class UpdateMagnitudeView(APIView):
@@ -583,23 +605,24 @@ class CartIconView(APIView):
 
 
 class GalaxyRequestListView(APIView):
-    authentication_classes = [RedisSessionAuthentication]  # отключаем стандартную DRF аутентификацию
+    authentication_classes = [RedisSessionAuthentication]
     permission_classes = [IsAuthenticatedCustom]
 
     @swagger_auto_schema(
-        operation_description="Список заявок. Для обычного пользователя — только его заявки; для модератора — все заявки (кроме draft и deleted). Включает все галактики с magnitude и distance.",
+        operation_description="Список заявок. Для пользователя — только его заявки; для модератора — все. С датами в российском формате.",
         tags=["GalaxyRequests"]
     )
     def get(self, request):
-        user = get_user(request)  # получаем пользователя через Redis
+        user = get_user(request)
         if not user:
             return Response({"error": "User not authenticated"}, status=401)
 
         status_order = ["submitted", "completed", "rejected"]
 
-        if user.is_staff or user.is_superuser:  # модератор
+        # Выборка по роли
+        if user.is_staff or user.is_superuser:
             queryset = GalaxyRequest.objects.exclude(status__in=["draft", "deleted"])
-        else:  # обычный пользователь
+        else:
             queryset = GalaxyRequest.objects.filter(creator=user).exclude(status__in=["draft", "deleted"])
 
         queryset = queryset.annotate(
@@ -610,7 +633,6 @@ class GalaxyRequestListView(APIView):
             )
         ).order_by("status_order", "submitted_at")
 
-        # Формируем кастомный JSON
         data = []
         for req in queryset:
             galaxies_list = []
@@ -628,21 +650,22 @@ class GalaxyRequestListView(APIView):
                 "creator": req.creator.username,
                 "moderator": req.moderator.username if req.moderator else None,
                 "telescope": req.telescope,
-                "created_at": req.created_at,
-                "submitted_at": req.submitted_at,
-                "completed_at": req.completed_at,
+                "created_at": format_dt(req.created_at),
+                "submitted_at": format_dt(req.submitted_at),
+                "completed_at": format_dt(req.completed_at),
                 "galaxies": galaxies_list
             })
 
         return Response(data)
 
 
+
 class GalaxyRequestDetailView(APIView):
-    authentication_classes = [RedisSessionAuthentication]  # используем Redis-сессии
+    authentication_classes = [RedisSessionAuthentication]
     permission_classes = [IsAuthenticatedCustom]
 
     @swagger_auto_schema(
-        operation_description="Получить детали заявки. Пользователь видит только свои заявки (кроме draft и deleted). Модератор видит все заявки (кроме draft и deleted). Включает все галактики с magnitude и distance.",
+        operation_description="Детали заявки. Даты в формате РФ. Пользователь видит только свои, модератор — все (кроме черновых и удалённых).",
         tags=["GalaxyRequests"]
     )
     def get(self, request, pk):
@@ -650,17 +673,18 @@ class GalaxyRequestDetailView(APIView):
         if not user:
             return Response({"error": "User not authenticated"}, status=401)
 
-        # Определяем фильтр по роли
-        if user.is_staff or user.is_superuser:  # модератор
+        # Модератор
+        if user.is_staff or user.is_superuser:
             galaxy_request = get_object_or_404(GalaxyRequest, pk=pk)
             if galaxy_request.status in ["draft", "deleted"]:
                 return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
-        else:  # обычный пользователь
+
+        # Обычный пользователь
+        else:
             galaxy_request = get_object_or_404(GalaxyRequest, pk=pk, creator=user)
             if galaxy_request.status in ["draft", "deleted"]:
                 return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
 
-        # Формируем кастомный JSON
         galaxies_list = []
         for item in galaxy_request.galaxies.all():
             galaxies_list.append({
@@ -676,13 +700,14 @@ class GalaxyRequestDetailView(APIView):
             "creator": galaxy_request.creator.username,
             "moderator": galaxy_request.moderator.username if galaxy_request.moderator else None,
             "telescope": galaxy_request.telescope,
-            "created_at": galaxy_request.created_at,
-            "submitted_at": galaxy_request.submitted_at,
-            "completed_at": galaxy_request.completed_at,
+            "created_at": format_dt(galaxy_request.created_at),
+            "submitted_at": format_dt(galaxy_request.submitted_at),
+            "completed_at": format_dt(galaxy_request.completed_at),
             "galaxies": galaxies_list
         }
 
         return Response(data)
+
 
 
 class GalaxyRequestUpdateView(APIView):
@@ -782,8 +807,9 @@ class GalaxyRequestCompleteView(APIView):
                     # distance in Mpc
                     item.distance = 10 ** ((item.magnitude - M + 5) / 5) / 1_000_000
                     item.save(update_fields=['distance'])
+        
 
-        return Response({"id": galaxy_request.id, "status": galaxy_request.status, "result": "success"})
+        return Response({"id": galaxy_request.id, "status": galaxy_request.status, "result": "success" })
 
 
 class GalaxyRequestDeleteView(APIView):

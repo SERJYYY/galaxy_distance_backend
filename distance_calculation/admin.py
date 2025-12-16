@@ -28,7 +28,7 @@ class GalaxyRequestAdmin(admin.ModelAdmin):
 # Админка для промежуточной таблицы
 @admin.register(GalaxiesInRequest)
 class GalaxiesInRequestAdmin(admin.ModelAdmin):
-    list_display = ("id", "galaxy_request", "galaxy", "magnitude", "distance")
+    list_display = ("id", "galaxy_request", "galaxy", "magnitude", "distance", "added_at")
     list_filter = ("galaxy_request__status",)
     search_fields = ("galaxy__name",)
 
