@@ -79,6 +79,32 @@ class GalaxyRequestDetailSerializer(serializers.ModelSerializer):
         ]
 
 
+class GalaxyRequestListSerializer(serializers.ModelSerializer):
+    creator = serializers.StringRelatedField(read_only=True)
+    moderator = serializers.StringRelatedField(read_only=True)
+    created_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    submitted_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    completed_at = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    calculated_galaxy_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GalaxyRequest
+        fields = [
+            "id",
+            "status",
+            "creator",
+            "moderator",
+            "telescope",
+            "created_at",
+            "submitted_at",
+            "completed_at",
+            "calculated_galaxy_count",
+        ]
+
+    def get_calculated_galaxy_count(self, obj):
+        # Считаем только услуги с заполненным distance
+        return obj.galaxies.filter(distance__isnull=False).count()
+
 
 
 # -----------------------

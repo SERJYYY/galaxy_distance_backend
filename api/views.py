@@ -19,7 +19,9 @@ from rest_framework.authentication import BaseAuthentication
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
+from django.utils.decorators import method_decorator
 
 from django.db.models import Case, When, Value, IntegerField
 
@@ -29,7 +31,7 @@ from .models import Galaxy, GalaxyRequest, GalaxiesInRequest, CustomUser
 from .serializers import (
     GalaxySerializer, GalaxyCreateSerializer,
     GalaxyRequestSerializer, GalaxyRequestDetailSerializer,
-    UserRegisterSerializer, UserProfileSerializer
+    UserRegisterSerializer, UserProfileSerializer, GalaxyRequestListSerializer
 )
 from .minio_utils import handle_galaxy_image_upload, delete_image_from_minio
 
@@ -605,17 +607,18 @@ class CartIconView(APIView):
 
 
 class GalaxyRequestListView(APIView):
-    authentication_classes = [RedisSessionAuthentication]
-    permission_classes = [IsAuthenticatedCustom]
+    authentication_classes = [RedisSessionAuthentication]  # твоя кастомная аутентификация через Redis
+    permission_classes = [IsAuthenticatedCustom]           # твои кастомные права
 
     @swagger_auto_schema(
         operation_description="Список заявок. Для пользователя — только его заявки; для модератора — все. С датами в российском формате.",
-        tags=["GalaxyRequests"]
+        tags=["GalaxyRequests"],
+        responses={200: GalaxyRequestListSerializer(many=True)}
     )
     def get(self, request):
         user = get_user(request)
         if not user:
-            return Response({"error": "User not authenticated"}, status=401)
+            return Response({"error": "Пользователь не авторизован"}, status=401)
 
         status_order = ["submitted", "completed", "rejected"]
 
@@ -625,6 +628,7 @@ class GalaxyRequestListView(APIView):
         else:
             queryset = GalaxyRequest.objects.filter(creator=user).exclude(status__in=["draft", "deleted"])
 
+        # Сортировка по статусу и дате подачи
         queryset = queryset.annotate(
             status_order=Case(
                 *[When(status=s, then=Value(i)) for i, s in enumerate(status_order)],
@@ -633,30 +637,9 @@ class GalaxyRequestListView(APIView):
             )
         ).order_by("status_order", "submitted_at")
 
-        data = []
-        for req in queryset:
-            galaxies_list = []
-            for item in req.galaxies.all():
-                galaxies_list.append({
-                    "id": item.galaxy.id,
-                    "name": item.galaxy.name,
-                    "magnitude": item.magnitude,
-                    "distance": item.distance
-                })
-
-            data.append({
-                "id": req.id,
-                "status": req.status,
-                "creator": req.creator.username,
-                "moderator": req.moderator.username if req.moderator else None,
-                "telescope": req.telescope,
-                "created_at": format_dt(req.created_at),
-                "submitted_at": format_dt(req.submitted_at),
-                "completed_at": format_dt(req.completed_at),
-                "galaxies": galaxies_list
-            })
-
-        return Response(data)
+        # Сериализация
+        serializer = GalaxyRequestListSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 
@@ -773,10 +756,6 @@ class GalaxyRequestFormView(APIView):
         draft.save(update_fields=["status", "submitted_at"])
         return Response({"status": "formed", "id": draft.id})
 
-        draft.status = GalaxyRequest.Status.SUBMITTED
-        draft.submitted_at = timezone.now()
-        draft.save(update_fields=["status", "submitted_at"])
-        return Response({"status": "formed", "id": draft.id})
 
 class GalaxyRequestCompleteView(APIView):
     permission_classes = [IsModerator]
