@@ -64,3 +64,15 @@ def handle_galaxy_image_upload(galaxy, image_file):
     galaxy.save(update_fields=['image_name'])
 
     return Response({"image_url": url}, status=201)
+
+def file_exists_in_minio(object_name: str, bucket: str = None) -> bool:
+    """
+    Проверяет, существует ли файл в MinIO.
+    """
+    client = get_minio_client()
+    bucket = bucket or settings.MINIO_BUCKET
+    try:
+        client.stat_object(bucket, object_name)
+        return True
+    except Exception:
+        return False

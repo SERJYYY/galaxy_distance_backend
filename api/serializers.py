@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Galaxy, GalaxyRequest, GalaxiesInRequest, CustomUser
+from .minio_utils import settings
+from django.conf import settings
 
 User = get_user_model()
 
@@ -9,9 +11,17 @@ User = get_user_model()
 # GALAXY SERIALIZERS
 # -----------------------
 class GalaxySerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Galaxy
-        fields = ['id', 'name', 'description', 'image_name', 'is_active']
+        fields = ['id', 'name', 'description', 'image_name', 'is_active', 'image_url']
+
+    def get_image_url(self, obj):
+        if not obj.image_name:
+            return None
+        # Формируем URL по тому же шаблону, что в minio_utils.upload_image_to_minio
+        return f"http://localhost:9000/{settings.MINIO_BUCKET}/{obj.image_name}"
 
 
 class GalaxyCreateSerializer(serializers.ModelSerializer):

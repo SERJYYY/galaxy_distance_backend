@@ -44,9 +44,11 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework.authtoken',
     'drf_yasg',
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -193,3 +195,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False      # ОБЯЗАТЕЛЬНО False для http
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_PATH = "/"
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
