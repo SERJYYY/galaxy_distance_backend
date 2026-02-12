@@ -14,7 +14,7 @@ services:
     depends_on:
       - db
       - minio
-      - redis   # Добавляем зависимость от Redis
+      - redis
 
   db:
     image: postgres:15
@@ -38,13 +38,13 @@ services:
       - minio-data:/data
 
   redis:
-    image: redis:7.2-alpine   # Лёгкий официальный образ Redis
+    image: redis:7.2-alpine
     container_name: redis
     ports:
-      - "6379:6379"           # Пробрасываем порт Redis (если нужно подключаться снаружи)
+      - "6379:6379"
     volumes:
-      - redis_data:/data      # Храним данные Redis в volume
-    command: ["redis-server", "--appendonly", "yes"]  # Включаем AOF для сохранности данных
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
   nginx:
     image: nginx:1.19.2-alpine
@@ -56,6 +56,25 @@ services:
       - "8080:8000"
     depends_on:
       - web
+
+
+  frontend:
+    container_name: galaxy-frontend
+    build:
+      context: ../galaxy_frontend/my-app   # путь к Dockerfile фронта
+      target: development                # если используешь multi-stage Dockerfile
+    volumes:
+      - ../galaxy_frontend/my-app:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: npm run dev
+    environment:
+      - CHOKIDAR_USEPOLLING=true        # чтобы hot-reload работал в Docker на Windows
+    depends_on:
+      - web    
+
+
 
 volumes:
   postgres_data:
