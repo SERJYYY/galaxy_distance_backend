@@ -137,8 +137,30 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    is_moderator = serializers.SerializerMethodField()
+    
+    # 👇 Поля для смены пароля (только для записи)
+    old_password = serializers.CharField(write_only=True, required=False)
+    new_password = serializers.CharField(write_only=True, required=False)
+    
     class Meta:
-        model = User
-        fields = ["id", "username", "email", "first_name", "last_name"]
-        read_only_fields = ["id", "username"]
+        model = CustomUser
+        fields = ["id", "username", "email", "first_name", "last_name", "is_moderator", "old_password", "new_password"]
+        read_only_fields = ["id", "username", "email", "is_moderator"]
+    
+    def get_is_moderator(self, obj):
+        return obj.is_staff
+    
+    def update(self, instance, validated_data):
+        # 👇 Логика смены пароля
+        old_password = validated_data.pop('old_password', None)
+        new_password = validated_data.pop('new_password', None)
+        
+        if old_password and new_password:
+            if not instance.check_password(old_password):
+                raise serializers.ValidationError({"old_password": "Неверный текущий пароль"})
+            instance.set_password(new_password)
+            instance.save()
+        
+        return super().update(instance, validated_data)
 

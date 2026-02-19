@@ -285,17 +285,34 @@ class RedisSessionAuthentication(BaseAuthentication):
 
 # ------------------- Galaxy Views -------------------
 class GalaxyListView(APIView):
-    @method_permission_classes((AllowAny,))
+    permission_classes = [AllowAny]
+
+    # Swagger описание
+    @swagger_auto_schema(
+        operation_description="Получение списка галактик. Можно фильтровать по названию через параметр search.",
+        manual_parameters=[
+            openapi.Parameter(
+                'search',
+                openapi.IN_QUERY,
+                description="Фильтр по названию галактики (необязательный)",
+                type=openapi.TYPE_STRING
+            )
+        ],
+        responses={200: GalaxySerializer(many=True)}
+    )
     def get(self, request):
+        # Получаем query-параметр search
+        search = request.GET.get("search", "")
+
+        # Базовый queryset только активные галактики
         galaxies = Galaxy.objects.filter(is_active=True)
+
+        # Если есть search, фильтруем по названию (регистронезависимо)
+        if search:
+            galaxies = galaxies.filter(name__icontains=search)
+
         serializer = GalaxySerializer(galaxies, many=True)
         return Response(serializer.data)
-
-
-GalaxyListView.get = swagger_auto_schema(
-    operation_description="Получить список всех активных услуг (галактик)",
-    tags=["Galaxies"]
-)(GalaxyListView.get)
 
 
 class GalaxyDetailView(generics.RetrieveAPIView):
@@ -580,7 +597,8 @@ class UpdateMagnitudeView(APIView):
 
 # ------------------- GalaxyRequest Views -------------------
 class CartIconView(APIView):
-    permission_classes = [IsUser]
+    authentication_classes = [RedisSessionAuthentication]
+    permission_classes = [IsAuthenticatedCustom]  # 👈 Исправлено: используем существующий класс
 
     @swagger_auto_schema(
         operation_id="get_cart_icon",
@@ -595,23 +613,43 @@ class CartIconView(APIView):
                         'count': openapi.Schema(type=openapi.TYPE_INTEGER, description='Количество услуг в черновой заявке')
                     }
                 )
-            )
+            ),
+            401: openapi.Response(description="Не авторизован")
         },
         tags=["GalaxyRequests"]
     )
     def get(self, request):
         user = get_user(request)
-        draft = GalaxyRequest.objects.filter(creator=user, status=GalaxyRequest.Status.DRAFT).first()
+        if not user:
+            return Response({'error': 'Пользователь не авторизован'}, status=401)
+        
+        # 👇 Ищем черновик (используем строку "draft" вместо enum, если нет Enum)
+        draft = GalaxyRequest.objects.filter(
+            creator=user, 
+            status="draft"  # 👈 Или GalaxyRequest.Status.DRAFT если есть Enum
+        ).first()
+        
+        # 👇 Считаем услуги через related_name (проверь в модели GalaxyInRequest)
         count = draft.galaxies.count() if draft else 0
-        return Response({'draft_id': draft.id if draft else None, 'count': count})
+        
+        return Response({
+            'draft_id': draft.id if draft else None, 
+            'count': count
+        })
 
 
+# views.py
 class GalaxyRequestListView(APIView):
-    authentication_classes = [RedisSessionAuthentication]  # твоя кастомная аутентификация через Redis
-    permission_classes = [IsAuthenticatedCustom]           # твои кастомные права
-
+    authentication_classes = [RedisSessionAuthentication]
+    permission_classes = [IsAuthenticatedCustom]
+    
     @swagger_auto_schema(
-        operation_description="Список заявок. Для пользователя — только его заявки; для модератора — все. С датами в российском формате.",
+        operation_description="Список заявок. Для модератора — все заявки с фильтрацией. С датами в российском формате.",
+        manual_parameters=[
+            openapi.Parameter('date_from', openapi.IN_QUERY, description="Дата с (дд.мм.гггг)", type=openapi.TYPE_STRING),
+            openapi.Parameter('date_to', openapi.IN_QUERY, description="Дата по (дд.мм.гггг)", type=openapi.TYPE_STRING),
+            openapi.Parameter('status', openapi.IN_QUERY, description="Статус заявки", type=openapi.TYPE_STRING, enum=['submitted', 'completed', 'rejected']),
+        ],
         tags=["GalaxyRequests"],
         responses={200: GalaxyRequestListSerializer(many=True)}
     )
@@ -622,10 +660,35 @@ class GalaxyRequestListView(APIView):
 
         status_order = ["submitted", "completed", "rejected"]
 
-        # Выборка по роли
+        # Модератор видит все заявки (кроме черновых и удалённых)
         if user.is_staff or user.is_superuser:
             queryset = GalaxyRequest.objects.exclude(status__in=["draft", "deleted"])
+            
+            # 👇 Фильтрация по дате (бэкенд)
+            date_from = request.query_params.get('date_from')
+            date_to = request.query_params.get('date_to')
+            status_filter = request.query_params.get('status')
+            
+            if date_from:
+                try:
+                    from datetime import datetime
+                    from_date = datetime.strptime(date_from, "%Y-%m-%d")
+                    queryset = queryset.filter(submitted_at__date__gte=from_date.date())
+                except ValueError:
+                    pass
+            
+            if date_to:
+                try:
+                    from datetime import datetime
+                    to_date = datetime.strptime(date_to, "%Y-%m-%d")
+                    queryset = queryset.filter(submitted_at__date__lte=to_date.date())
+                except ValueError:
+                    pass
+            
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
         else:
+            # Обычный пользователь видит только свои заявки
             queryset = GalaxyRequest.objects.filter(creator=user).exclude(status__in=["draft", "deleted"])
 
         # Сортировка по статусу и дате подачи
@@ -646,9 +709,41 @@ class GalaxyRequestListView(APIView):
 class GalaxyRequestDetailView(APIView):
     authentication_classes = [RedisSessionAuthentication]
     permission_classes = [IsAuthenticatedCustom]
-
+    
     @swagger_auto_schema(
-        operation_description="Детали заявки. Даты в формате РФ. Пользователь видит только свои, модератор — все (кроме черновых и удалённых).",
+        operation_description="Детали заявки. Даты в формате РФ. Пользователь видит только свои (включая черновики), модератор — все (кроме черновых и удалённых).",
+        responses={
+            200: openapi.Response(
+                description="Детали заявки",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, enum=['draft', 'submitted', 'completed', 'rejected']),
+                        'creator': openapi.Schema(type=openapi.TYPE_STRING),
+                        'moderator': openapi.Schema(type=openapi.TYPE_STRING),
+                        'telescope': openapi.Schema(type=openapi.TYPE_STRING),
+                        'created_at': openapi.Schema(type=openapi.TYPE_STRING),
+                        'submitted_at': openapi.Schema(type=openapi.TYPE_STRING),
+                        'completed_at': openapi.Schema(type=openapi.TYPE_STRING),
+                        'galaxies': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Items(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'magnitude': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                    'distance': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                }
+                            )
+                        ),
+                    }
+                )
+            ),
+            403: openapi.Response(description="Доступ запрещён"),
+            404: openapi.Response(description="Заявка не найдена"),
+        },
         tags=["GalaxyRequests"]
     )
     def get(self, request, pk):
@@ -656,16 +751,17 @@ class GalaxyRequestDetailView(APIView):
         if not user:
             return Response({"error": "User not authenticated"}, status=401)
 
-        # Модератор
+        # 👇 Модератор видит все заявки КРОМЕ черновиков и удалённых
         if user.is_staff or user.is_superuser:
             galaxy_request = get_object_or_404(GalaxyRequest, pk=pk)
             if galaxy_request.status in ["draft", "deleted"]:
                 return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
-
-        # Обычный пользователь
+        
+        # 👇 Обычный пользователь видит ТОЛЬКО свои заявки (ВКЛЮЧАЯ черновики)
         else:
             galaxy_request = get_object_or_404(GalaxyRequest, pk=pk, creator=user)
-            if galaxy_request.status in ["draft", "deleted"]:
+            # ❌ УБРАНА проверка на draft - пользователь должен иметь доступ к своим черновикам!
+            if galaxy_request.status == "deleted":
                 return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
 
         galaxies_list = []
@@ -887,13 +983,35 @@ class UserLogoutView(APIView):
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticatedCustom]
 
-    @swagger_auto_schema(operation_description="Получить профиль текущего пользователя", tags=["Users"])
+    @swagger_auto_schema(
+        operation_description="Получить профиль текущего пользователя",
+        responses={
+            200: openapi.Response(
+                description="Профиль пользователя",
+                schema=UserProfileSerializer  # 👈 Swagger использует сериализатор для генерации схемы
+            ),
+            401: openapi.Response(description="Не авторизован")
+        },
+        tags=["Users"]
+    )
     def get(self, request):
         user = get_user(request)
         serializer = UserProfileSerializer(user)
         return Response(serializer.data)
 
-    @swagger_auto_schema(operation_description="Изменить профиль текущего пользователя", request_body=UserProfileSerializer, tags=["Users"])
+    @swagger_auto_schema(
+        operation_description="Изменить профиль текущего пользователя",
+        request_body=UserProfileSerializer,
+        responses={
+            200: openapi.Response(
+                description="Обновлённый профиль пользователя",
+                schema=UserProfileSerializer
+            ),
+            400: openapi.Response(description="Ошибка валидации"),
+            401: openapi.Response(description="Не авторизован")
+        },
+        tags=["Users"]
+    )
     def put(self, request):
         user = get_user(request)
         serializer = UserProfileSerializer(user, data=request.data, partial=True)

@@ -196,6 +196,23 @@ SESSION_COOKIE_SECURE = False      # ОБЯЗАТЕЛЬНО False для http
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_PATH = "/"
 
+# 🔐 CSRF настройки для localhost:3000
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# 🌐 CORS настройки
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+CORS_ALLOW_CREDENTIALS = True  # Обязательно для cookie
+
+# 🍪 Cookie настройки для dev
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False  # False для HTTP в dev
+SESSION_COOKIE_HTTPONLY = True  # Защита от XSS
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False  # Чтобы JS мог читать токен
