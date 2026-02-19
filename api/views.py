@@ -34,6 +34,7 @@ from .serializers import (
     UserRegisterSerializer, UserProfileSerializer, GalaxyRequestListSerializer
 )
 from .minio_utils import handle_galaxy_image_upload, delete_image_from_minio
+from .utils.viewed_galaxies import add_viewed_galaxy, get_recently_viewed_galaxies
 
 def format_dt(dt):
     """Форматирует дату в формат дд.мм.гггг чч:мм. Если None — возвращает None."""
@@ -140,6 +141,8 @@ def get_user(request):
     # продлеваем TTL
     refresh_session_ttl(session_id)
     return user
+
+
 
 
 # ------------------- Permissions (Redis-session-aware) -------------------
@@ -638,7 +641,7 @@ class CartIconView(APIView):
         })
 
 
-# views.py
+
 class GalaxyRequestListView(APIView):
     authentication_classes = [RedisSessionAuthentication]
     permission_classes = [IsAuthenticatedCustom]
@@ -660,9 +663,10 @@ class GalaxyRequestListView(APIView):
 
         status_order = ["submitted", "completed", "rejected"]
 
-        # Модератор видит все заявки (кроме черновых и удалённых)
+        # Модератор видит все заявки (кроме удалённых)
         if user.is_staff or user.is_superuser:
-            queryset = GalaxyRequest.objects.exclude(status__in=["draft", "deleted"])
+            # 👇 ИСПРАВЛЕНО: модератор видит ВСЕ заявки, включая черновики
+            queryset = GalaxyRequest.objects.exclude(status="deleted")
             
             # 👇 Фильтрация по дате (бэкенд)
             date_from = request.query_params.get('date_from')
@@ -688,8 +692,8 @@ class GalaxyRequestListView(APIView):
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
         else:
-            # Обычный пользователь видит только свои заявки
-            queryset = GalaxyRequest.objects.filter(creator=user).exclude(status__in=["draft", "deleted"])
+            # Обычный пользователь видит только свои заявки (кроме удалённых)
+            queryset = GalaxyRequest.objects.filter(creator=user).exclude(status="deleted")
 
         # Сортировка по статусу и дате подачи
         queryset = queryset.annotate(
@@ -1019,3 +1023,78 @@ class UserProfileView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+    
+
+@api_view(["POST"])
+def track_view(request):
+    """
+    Отслеживает просмотр галактики (для гостевой сессии).
+    """
+    galaxy_id = request.data.get("galaxy_id")
+    guest_session_id = getattr(request, "guest_session_id", None)
+    
+    if not galaxy_id or not guest_session_id:
+        return Response({"error": "galaxy_id и guest_session_id обязательны"}, status=400)
+    
+    add_viewed_galaxy(guest_session_id, galaxy_id)
+    
+    return Response({"status": "ok"})
+
+@api_view(["GET"])
+def get_recently_viewed(request):
+    """
+    Получает список недавно просмотренных галактик (4 шт).
+    """
+    guest_session_id = getattr(request, "guest_session_id", None)
+    
+    if not guest_session_id:
+        return Response([])
+    
+    # 👇 Получаем 4 галактики
+    viewed_ids = get_recently_viewed_galaxies(guest_session_id, count=4)
+    
+    if not viewed_ids:
+        return Response([])
+    
+    # Получаем объекты галактик из БД
+    galaxies = Galaxy.objects.filter(id__in=viewed_ids, is_active=True)
+    
+    # Сохраняем порядок из Redis
+    galaxy_dict = {g.id: g for g in galaxies}
+    ordered_galaxies = [galaxy_dict[gid] for gid in viewed_ids if gid in galaxy_dict]
+    
+    serializer = GalaxySerializer(ordered_galaxies, many=True)
+    
+    return Response(serializer.data)
+
+@api_view(["GET"])
+def galaxies_list(request):
+    """
+    Получение списка галактик с фильтрацией по недавно просмотренным.
+    """
+    from django_filters.rest_framework import DjangoFilterBackend
+    from rest_framework.filters import SearchFilter
+    
+    # Стандартная логика списка галактик
+    galaxies = Galaxy.objects.filter(is_active=True)
+    
+    # Фильтр по search
+    search = request.query_params.get("search")
+    if search:
+        galaxies = galaxies.filter(name__icontains=search)
+    
+    # 👇 Если есть параметр recently_viewed=true — возвращаем только недавно просмотренные
+    recently_viewed = request.query_params.get("recently_viewed")
+    if recently_viewed == "true":
+        guest_session_id = getattr(request, "guest_session_id", None)
+        if guest_session_id:
+            viewed_ids = get_recently_viewed_galaxies(guest_session_id, count=10)
+            galaxies = galaxies.filter(id__in=viewed_ids)
+    
+    serializer = GalaxySerializer(galaxies, many=True)
+    return Response(serializer.data)
+
+@api_view(["GET"])
+def health_check(request):
+    """Простой эндпоинт для проверки работы API"""
+    return Response({"status": "ok", "message": "API работает"})

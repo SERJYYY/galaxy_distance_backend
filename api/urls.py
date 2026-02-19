@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
-from .views import login_view, logout_view
+from .views import login_view, logout_view, track_view, get_recently_viewed, health_check
+
 
 
 
@@ -32,5 +33,11 @@ urlpatterns = [
     path('users/login/', login_view, name='user-login'),  # POST вход в систему (сессия + csrf)
     path('users/logout/', logout_view, name='user-logout'),  # POST выход из системы
     path('users/profile/', views.UserProfileView.as_view(), name='user-profile'),  # GET/PUT профиль текущего пользователя
+
+
+
+    path("galaxies/track-view/", track_view, name="track-view"),  # 👈 Новый
+    path("galaxies/recently-viewed/", get_recently_viewed, name="recently-viewed"),  # 👈 Новый
+    path('health/', health_check, name='health-check'),
 
 ]
