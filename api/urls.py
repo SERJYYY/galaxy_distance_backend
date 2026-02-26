@@ -23,7 +23,7 @@ urlpatterns = [
     path('galaxy_requests/<int:pk>/complete/', views.GalaxyRequestCompleteView.as_view(), name='galaxyrequests-complete'),  # PUT завершение или отклонение заявки модератором
     path('galaxy_requests/delete/', views.GalaxyRequestDeleteView.as_view(), name='galaxyrequests-delete'),  # DELETE мягкое удаление черновой заявки
     path('galaxy_requests/cart-icon/', views.CartIconView.as_view(), name='cart-icon'),  # GET количество услуг в черновой заявке
-
+    path('galaxies-in-request/<int:gir_id>/update-distance/', views.update_galaxy_distance, name='galaxy-update-distance'),
     # ---------------- GALAXIES IN REQUEST ----------------
     path('galaxy_requests/<int:pk>/remove-from-request/', views.RemoveGalaxyFromDraftView.as_view(), name='galaxiesinrequest-delete'),  # DELETE удаление услуги из текущей черновой заявки
     path('galaxy_requests/update-magnitude/', views.UpdateMagnitudeView.as_view(), name='galaxiesinrequest-update-magnitude'),  # PUT изменение magnitude услуги в черновой заявке

@@ -1,6 +1,9 @@
 # galaxy_distance/api/views.py
 import uuid
 import json
+import os
+import requests
+import traceback
 from datetime import datetime
 
 from django.conf import settings
@@ -35,6 +38,7 @@ from .serializers import (
 )
 from .minio_utils import handle_galaxy_image_upload, delete_image_from_minio
 from .utils.viewed_galaxies import add_viewed_galaxy, get_recently_viewed_galaxies
+
 
 def format_dt(dt):
     """Форматирует дату в формат дд.мм.гггг чч:мм. Если None — возвращает None."""
@@ -755,19 +759,29 @@ class GalaxyRequestDetailView(APIView):
         if not user:
             return Response({"error": "User not authenticated"}, status=401)
 
-        # 👇 Модератор видит все заявки КРОМЕ черновиков и удалённых
-        if user.is_staff or user.is_superuser:
-            galaxy_request = get_object_or_404(GalaxyRequest, pk=pk)
-            if galaxy_request.status in ["draft", "deleted"]:
-                return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
+        # 👇 Получаем заявку
+        galaxy_request = get_object_or_404(GalaxyRequest, pk=pk)
         
-        # 👇 Обычный пользователь видит ТОЛЬКО свои заявки (ВКЛЮЧАЯ черновики)
-        else:
-            galaxy_request = get_object_or_404(GalaxyRequest, pk=pk, creator=user)
-            # ❌ УБРАНА проверка на draft - пользователь должен иметь доступ к своим черновикам!
+        # 👇 ПРОВЕРКА 1: Пользователь — создатель заявки?
+        # Если ДА — разрешаем доступ ко всем статусам (включая черновики)
+        if galaxy_request.creator == user:
             if galaxy_request.status == "deleted":
                 return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
+            # ✅ Создатель видит свои черновики, отправленные, завершённые, отклонённые
+        
+        # 👇 ПРОВЕРКА 2: Пользователь — модератор, но НЕ создатель?
+        # Если ДА — разрешаем доступ кроме черновиков и удалённых
+        elif user.is_staff or user.is_superuser:
+            if galaxy_request.status in ["draft", "deleted"]:
+                return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
+            # ✅ Модератор видит чужие заявки (кроме черновиков и удалённых)
+        
+        # 👇 ПРОВЕРКА 3: Обычный пользователь, не создатель
+        # Если ДА — доступ запрещён
+        else:
+            return Response({"error": "Доступ к этой заявке запрещён"}, status=403)
 
+        # 👇 Формируем ответ
         galaxies_list = []
         for item in galaxy_request.galaxies.all():
             galaxies_list.append({
@@ -794,7 +808,7 @@ class GalaxyRequestDetailView(APIView):
 
 
 class GalaxyRequestUpdateView(APIView):
-    permission_classes = [IsUser]  
+    permission_classes = [IsAuthenticatedCustom]  
 
     @swagger_auto_schema(
         operation_description="Обновить поле telescope в текущей черновой заявке пользователя",
@@ -855,40 +869,157 @@ class GalaxyRequestFormView(APIView):
         draft.submitted_at = timezone.now()
         draft.save(update_fields=["status", "submitted_at"])
         return Response({"status": "formed", "id": draft.id})
+    
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_galaxy_distance(request, gir_id):  # 👇 gir_id вместо galaxy_id
+    """
+    POST /api/galaxies-in-request/{gir_id}/update-distance/
+    
+    Принимает результат расчёта расстояния от Rust-сервиса
+    и обновляет поле distance в таблице GalaxiesInRequest (м-м).
+    
+    Тело запроса:
+    {
+        "distance": 22.9,
+        "calculated_by": "rust_async_service"
+    }
+    
+    Заголовок:
+    Authorization: Bearer {ASYNC_TOKEN}
+    """
+    # 🔐 Проверка токена
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace('Bearer ', '').strip()
+    expected_token = os.getenv('ASYNC_TOKEN', 'secret8')
+    
+    if token != expected_token:
+        print(f"❌ Invalid token: {token}")
+        return Response({'error': 'Invalid token'}, status=403)
+    
+    try:
+        # 👇 Прямой поиск по ID записи в м-м таблице (без комбинаций!)
+        gir = GalaxiesInRequest.objects.get(id=gir_id)
+        
+        print(f"🔍 Найдено: GIR id={gir_id}, galaxy={gir.galaxy_id}, request={gir.galaxy_request_id}")
+        
+        # 👇 Обновление расстояния
+        distance = request.data.get('distance')
+        if distance is not None:
+            gir.distance = float(distance)
+            gir.save(update_fields=['distance'])
+            
+            print(f"✅ Updated GIR id={gir.id}: galaxy={gir.galaxy_id}, request={gir.galaxy_request_id}, distance={distance}")
+            
+            return Response({
+                'status': 'updated',
+                'gir_id': gir.id,
+                'galaxy_id': gir.galaxy_id,
+                'request_id': gir.galaxy_request_id,
+                'distance': gir.distance
+            })
+        else:
+            return Response({'error': 'Missing distance'}, status=400)
+            
+    except GalaxiesInRequest.DoesNotExist:
+        print(f"❌ GalaxiesInRequest not found: id={gir_id}")
+        return Response({'error': 'GalaxiesInRequest not found'}, status=404)
+    except ValueError as e:
+        print(f"❌ Invalid distance value: {e}")
+        return Response({'error': 'Invalid distance'}, status=400)
+    except Exception as e:
+        print(f"❌ Error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': 'Server error'}, status=500)
 
 
 class GalaxyRequestCompleteView(APIView):
     permission_classes = [IsModerator]
 
-    @swagger_auto_schema(operation_description="Завершить или отклонить заявку модератором. Доступно только для заявок со статусом 'submitted'.", request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'action': openapi.Schema(type=openapi.TYPE_STRING, enum=['complete', 'rejected'])
-        },
-        required=['action']
-    ), tags=["GalaxyRequests"])
+    @swagger_auto_schema(
+        operation_description="Завершить или отклонить заявку модератором. Доступно только для заявок со статусом 'submitted'.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'action': openapi.Schema(type=openapi.TYPE_STRING, enum=['complete', 'rejected'])
+            },
+            required=['action']
+        ),
+        tags=["GalaxyRequests"]
+    )
     def put(self, request, pk):
-        galaxy_request = get_object_or_404(GalaxyRequest, pk=pk, status=GalaxyRequest.Status.SUBMITTED)
+        galaxy_request = get_object_or_404(
+            GalaxyRequest, 
+            pk=pk, 
+            status=GalaxyRequest.Status.SUBMITTED
+        )
+        
         action = request.data.get('action')
         if action not in ['complete', 'rejected']:
             return Response({"error": "Invalid action"}, status=400)
 
-        galaxy_request.status = GalaxyRequest.Status.COMPLETED if action == 'complete' else GalaxyRequest.Status.REJECTED
+        # Обновляем статус заявки
+        galaxy_request.status = (
+            GalaxyRequest.Status.COMPLETED if action == 'complete' 
+            else GalaxyRequest.Status.REJECTED
+        )
         galaxy_request.moderator = get_user(request)
         galaxy_request.completed_at = timezone.now()
         galaxy_request.save(update_fields=['status', 'moderator', 'completed_at'])
 
+        # 👇 Если заявка одобрена — запускаем асинхронный расчёт расстояния через Rust
         if galaxy_request.status == GalaxyRequest.Status.COMPLETED:
-            # Расчет расстояния (Мпк)
-            M = -19.3
-            for item in galaxy_request.galaxies.all():
-                if item.magnitude is not None:
-                    # distance in Mpc
-                    item.distance = 10 ** ((item.magnitude - M + 5) / 5) / 1_000_000
-                    item.save(update_fields=['distance'])
-        
+            print(f"🔍 DEBUG: Заявка #{galaxy_request.id}, статус: {galaxy_request.status}")
+            
+            galaxies_with_magnitude = galaxy_request.galaxies.filter(magnitude__isnull=False)
+            print(f"🔍 DEBUG: Найдено галактик с magnitude: {galaxies_with_magnitude.count()}")
+            
+            rust_url = os.getenv('RUST_SERVICE_URL', 'http://host.docker.internal:8083/calculateResult')
+            auth_token = os.getenv('ASYNC_TOKEN', 'secret8')
+            
+            for item in galaxies_with_magnitude:  # 👇 item — это GalaxiesInRequest
+                print(f"🔍 DEBUG: Отправляю в Rust: gir_id={item.id}, galaxy_id={item.galaxy_id}, magnitude={item.magnitude}")
+                
+                payload = {
+                    "id": galaxy_request.id,
+                    "auth_token": auth_token,
+                    "gir_id": item.id,  # 👇 ID записи в м-м таблице (например, 100, 101, 102)
+                    "galaxy_id": item.galaxy_id,  # 👈 Опционально: для логов
+                    "magnitude": float(item.magnitude)
+                }
+                
+                try:
+                    print(f"🚀 POST {rust_url}")
+                    print(f"📦 Payload: {payload}")
+                    
+                    response = requests.post(
+                        rust_url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=2
+                    )
+                    
+                    print(f"✅ Rust ответил: {response.status_code} — {response.text}")
+                    
+                except requests.Timeout:
+                    print(f"⚠️ TIMEOUT: Rust не ответил за 2 сек для gir_id={item.id}")
+                except requests.ConnectionError as e:
+                    print(f"❌ CONNECTION ERROR: Не могу подключиться к {rust_url}")
+                    print(f"   Детали: {e}")
+                except Exception as e:
+                    print(f"❌ UNKNOWN ERROR для gir_id={item.id}: {type(e).__name__}: {e}")
+                    traceback.print_exc()
 
-        return Response({"id": galaxy_request.id, "status": galaxy_request.status, "result": "success" })
+        # 👇 Возврат ответа ВЫНЕSEN за пределы if (работает и для complete, и для rejected)
+        return Response({
+            "id": galaxy_request.id, 
+            "status": galaxy_request.status, 
+            "result": "success"
+        })
+
+   
 
 
 class GalaxyRequestDeleteView(APIView):

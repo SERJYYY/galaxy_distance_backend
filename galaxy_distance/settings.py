@@ -26,8 +26,12 @@ SECRET_KEY = 'django-insecure-cq86_m6ujzzm0+8u51u79u!@8=5$&g_4k8-ktdx9y^u_+jpd10
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '10.43.164.209',  # 👈 Ваш ZeroTier IP
+    '*',
+]
 
 # Application definition
 
@@ -201,12 +205,18 @@ SESSION_COOKIE_PATH = "/"
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://10.43.164.209:3000",
+    "tauri://localhost",  # 👈 Для Tauri
+    "http://tauri.localhost",  # 👈 Для Tauri
 ]
 
 # 🌐 CORS настройки
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://10.43.164.209:3000",
+    "tauri://localhost",  # 👈 Для Tauri
+    "http://tauri.localhost",  # 👈 Для Tauri
 ]
 CORS_ALLOW_CREDENTIALS = True  # Обязательно для cookie
 

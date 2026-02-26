@@ -8,3 +8,5 @@ django-filter>=23.5
 django-redis>=5.4
 drf-yasg[validation, swagger, redoc]
 django-cors-headers
+httpx>=0.24
+requests>=2.31
